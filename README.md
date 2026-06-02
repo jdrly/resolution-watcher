@@ -1,15 +1,15 @@
 # Resolution Watcher
 
-Tiny macOS LaunchAgent app that switches the main display to 1920x1080 HiDPI when World of Warcraft launches, then restores 2560x1440 HiDPI when it exits.
+Tiny macOS background app that switches the main display to 1920x1080 HiDPI when World of Warcraft launches, then restores 2560x1440 HiDPI when it exits.
 
-It uses macOS Launch Services events through `lsappinfo`, so it does not poll process state in a loop.
+It registers a bundled login-item helper with `SMAppService`, so macOS shows it as a normal Background Activity app instead of a legacy LaunchAgent.
 
 ## Requirements
 
 - macOS
 - [`displayplacer`](https://github.com/jakehilborn/displayplacer)
 - ImageMagick for building the icon during install
-- Xcode Command Line Tools for `Rez`, `SetFile`, and `iconutil`
+- Xcode Command Line Tools for `swiftc` and `iconutil`
 
 ## Install
 
@@ -43,8 +43,9 @@ Install:
 Runtime install paths:
 
 - `~/Applications/Resolution Watcher.app`
-- `~/Library/LaunchAgents/dev.local.resolution-watcher.plist`
 - `~/.config/resolution-watcher/config.zsh`
+
+Background Activity should show `Resolution Watcher` with `1 item`.
 
 ## Config
 
@@ -59,11 +60,9 @@ WORK_MODE='id:YOUR_DISPLAY_ID res:2560x1440 hz:60 color_depth:8 enabled:true sca
 ## Uninstall
 
 ```zsh
-launchctl bootout "gui/$(id -u)" ~/Library/LaunchAgents/dev.local.resolution-watcher.plist
-rm -f ~/Library/LaunchAgents/dev.local.resolution-watcher.plist
-rm -rf ~/Applications/Resolution\ Watcher.app
+./scripts/uninstall.zsh
 ```
 
 ## Signing
 
-The installed app is local-only and unsigned. macOS may show it as an unidentified developer. Removing that warning requires Apple Developer ID signing and notarization.
+The installed app is local-only and ad-hoc signed. Developer ID signing and notarization are only needed for normal third-party distribution.

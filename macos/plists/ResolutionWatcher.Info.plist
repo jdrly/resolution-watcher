@@ -3,6 +3,8 @@
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
   <key>CFBundleDisplayName</key>
   <string>Resolution Watcher</string>
   <key>CFBundleExecutable</key>
@@ -10,7 +12,7 @@
   <key>CFBundleIconFile</key>
   <string>ResolutionWatcher</string>
   <key>CFBundleIdentifier</key>
-  <string>dev.local.resolution-watcher</string>
+  <string>com.jd.resolution-watcher</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -20,10 +22,12 @@
   <key>CFBundleShortVersionString</key>
   <string>1.0</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
-  <key>LSBackgroundOnly</key>
-  <true/>
+  <string>__BUNDLE_VERSION__</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSSupportsAutomaticGraphicsSwitching</key>
+  <true/>
 </dict>
 </plist>
