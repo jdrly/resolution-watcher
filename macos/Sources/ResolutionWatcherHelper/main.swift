@@ -11,6 +11,7 @@ private final class ResolutionWatcher: NSObject {
     private let switcher: DisplayModeSwitcher
     private let logger: Logger
     private var state: WatcherState = .work
+    private var switchingToGame = false
 
     init(config: WatcherConfig, switcher: DisplayModeSwitcher, logger: Logger) {
         self.config = config
@@ -31,6 +32,12 @@ private final class ResolutionWatcher: NSObject {
         let center = NSWorkspace.shared.notificationCenter
         center.addObserver(
             self,
+            selector: #selector(applicationWillLaunch(_:)),
+            name: NSWorkspace.willLaunchApplicationNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
             selector: #selector(applicationLaunched(_:)),
             name: NSWorkspace.didLaunchApplicationNotification,
             object: nil
@@ -45,19 +52,20 @@ private final class ResolutionWatcher: NSObject {
         RunLoop.main.run()
     }
 
+    @objc private func applicationWillLaunch(_ notification: Notification) {
+        guard isWatchedApp(notification) else {
+            return
+        }
+
+        switchToGameMode(reason: "\(config.watchedBundleID) launch requested; switching to game mode before app launch")
+    }
+
     @objc private func applicationLaunched(_ notification: Notification) {
         guard isWatchedApp(notification) else {
             return
         }
 
-        guard state != .game else {
-            return
-        }
-
-        logger.log("\(config.watchedBundleID) detected; switching to game mode")
-        if switcher.setMode(config.gameMode) {
-            state = .game
-        }
+        switchToGameMode(reason: "\(config.watchedBundleID) launched; switching to game mode")
     }
 
     @objc private func applicationTerminated(_ notification: Notification) {
@@ -68,6 +76,22 @@ private final class ResolutionWatcher: NSObject {
         logger.log("\(config.watchedBundleID) closed; restoring work mode")
         if switcher.setMode(config.workMode) {
             state = .work
+        }
+    }
+
+    private func switchToGameMode(reason: String) {
+        guard state != .game, !switchingToGame else {
+            return
+        }
+
+        switchingToGame = true
+        defer {
+            switchingToGame = false
+        }
+
+        logger.log(reason)
+        if switcher.setMode(config.gameMode) {
+            state = .game
         }
     }
 
