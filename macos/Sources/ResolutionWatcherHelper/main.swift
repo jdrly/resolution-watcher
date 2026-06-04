@@ -10,15 +10,19 @@ private final class ResolutionWatcher: NSObject {
     private let config: WatcherConfig
     private let switcher: DisplayModeSwitcher
     private let logger: Logger
+    private let windowPositioner: WindowPositioner
     private var state: WatcherState = .work
     private var switchingToGame = false
     private var prelaunchPending = false
     private var prelaunchRestoreTimer: Timer?
+    private var windowPositionTimer: Timer?
+    private var windowPositionAttempts = 0
 
-    init(config: WatcherConfig, switcher: DisplayModeSwitcher, logger: Logger) {
+    init(config: WatcherConfig, switcher: DisplayModeSwitcher, logger: Logger, windowPositioner: WindowPositioner) {
         self.config = config
         self.switcher = switcher
         self.logger = logger
+        self.windowPositioner = windowPositioner
     }
 
     func run() {
@@ -26,6 +30,7 @@ private final class ResolutionWatcher: NSObject {
             logger.log("\(config.watchedBundleID) already running; switching to game mode")
             if switcher.setMode(config.gameMode) {
                 state = .game
+                scheduleWatchedWindowPositioning()
             }
         } else {
             logger.log("watcher started; waiting for \(config.watchedBundleID)")
@@ -58,6 +63,7 @@ private final class ResolutionWatcher: NSObject {
         if isWatchedApp(notification) {
             clearPrelaunchPending()
             switchToGameMode(reason: "\(config.watchedBundleID) launch requested; switching to game mode before app launch")
+            scheduleWatchedWindowPositioning()
             return
         }
 
@@ -75,6 +81,7 @@ private final class ResolutionWatcher: NSObject {
 
         clearPrelaunchPending()
         switchToGameMode(reason: "\(config.watchedBundleID) launched; switching to game mode")
+        scheduleWatchedWindowPositioning()
     }
 
     @objc private func applicationTerminated(_ notification: Notification) {
@@ -157,6 +164,24 @@ private final class ResolutionWatcher: NSObject {
             state = .work
         }
     }
+
+    private func scheduleWatchedWindowPositioning() {
+        windowPositionTimer?.invalidate()
+        windowPositionAttempts = 0
+        windowPositionTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+
+            self.windowPositionAttempts += 1
+            if self.windowPositioner.positionWindows(bundleIdentifier: self.config.watchedBundleID)
+                || self.windowPositionAttempts >= 20 {
+                timer.invalidate()
+                self.windowPositionTimer = nil
+            }
+        }
+    }
 }
 
 let logger = Logger.makeDefault()
@@ -164,7 +189,13 @@ let logger = Logger.makeDefault()
 do {
     let config = try WatcherConfig.load()
     let switcher = try DisplayModeSwitcher.make(logger: logger)
-    ResolutionWatcher(config: config, switcher: switcher, logger: logger).run()
+    let windowPositioner = WindowPositioner(logger: logger)
+    ResolutionWatcher(
+        config: config,
+        switcher: switcher,
+        logger: logger,
+        windowPositioner: windowPositioner
+    ).run()
 } catch {
     logger.log(error.localizedDescription)
     exit(78)

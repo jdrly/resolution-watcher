@@ -104,7 +104,8 @@ MACOSX_DEPLOYMENT_TARGET=13.0 swiftc \
 MACOSX_DEPLOYMENT_TARGET=13.0 swiftc \
   "$ROOT/macos/Sources/ResolutionWatcherHelper"/*.swift \
   -o "$HELPER_EXECUTABLE" \
-  -framework AppKit
+  -framework AppKit \
+  -framework ApplicationServices
 
 sed "s#__BUNDLE_VERSION__#$BUILD_VERSION#g" \
   "$ROOT/macos/plists/ResolutionWatcher.Info.plist" > "$CONTENTS/Info.plist"

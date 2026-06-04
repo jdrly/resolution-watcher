@@ -47,6 +47,8 @@ Runtime install paths:
 
 Background Activity should show `Resolution Watcher` with `1 item`.
 
+macOS may ask for Accessibility permission so the helper can clamp the watched game window to the screen after display mode changes.
+
 ## Config
 
 `~/.config/resolution-watcher/config.zsh`:
