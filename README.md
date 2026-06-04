@@ -53,6 +53,8 @@ Background Activity should show `Resolution Watcher` with `1 item`.
 
 ```zsh
 WATCHED_BUNDLE_ID="com.blizzard.worldofwarcraft"
+PRELAUNCH_BUNDLE_IDS="net.battle.bootstrapper"
+PRELAUNCH_TIMEOUT_SECONDS=180
 GAME_MODE='id:YOUR_DISPLAY_ID res:1920x1080 hz:60 color_depth:8 enabled:true scaling:on origin:(0,0) degree:0'
 WORK_MODE='id:YOUR_DISPLAY_ID res:2560x1440 hz:60 color_depth:8 enabled:true scaling:on origin:(0,0) degree:0'
 ```

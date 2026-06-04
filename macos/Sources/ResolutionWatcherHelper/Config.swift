@@ -2,6 +2,8 @@ import Foundation
 
 struct WatcherConfig {
     let watchedBundleID: String
+    let prelaunchBundleIDs: Set<String>
+    let prelaunchTimeoutSeconds: TimeInterval
     let gameMode: String
     let workMode: String
 
@@ -38,6 +40,11 @@ struct WatcherConfig {
         }
 
         let watchedBundleID = values["WATCHED_BUNDLE_ID"] ?? "com.blizzard.worldofwarcraft"
+        let prelaunchBundleIDs = parsePrelaunchBundleIDs(
+            values["PRELAUNCH_BUNDLE_IDS"],
+            watchedBundleID: watchedBundleID
+        )
+        let prelaunchTimeoutSeconds = try parsePrelaunchTimeout(values["PRELAUNCH_TIMEOUT_SECONDS"])
         guard let gameMode = values["GAME_MODE"], !gameMode.isEmpty else {
             throw ConfigError.missingKey("GAME_MODE")
         }
@@ -47,6 +54,8 @@ struct WatcherConfig {
 
         return WatcherConfig(
             watchedBundleID: watchedBundleID,
+            prelaunchBundleIDs: prelaunchBundleIDs,
+            prelaunchTimeoutSeconds: prelaunchTimeoutSeconds,
             gameMode: gameMode,
             workMode: workMode
         )
@@ -82,12 +91,43 @@ struct WatcherConfig {
 
         return value
     }
+
+    private static func parsePrelaunchBundleIDs(_ value: String?, watchedBundleID: String) -> Set<String> {
+        guard let value else {
+            if watchedBundleID == "com.blizzard.worldofwarcraft" {
+                return ["net.battle.bootstrapper"]
+            }
+
+            return []
+        }
+
+        return Set(
+            value.split { character in
+                character == "," || character == " " || character == "\t"
+            }
+            .map(String.init)
+            .filter { !$0.isEmpty }
+        )
+    }
+
+    private static func parsePrelaunchTimeout(_ value: String?) throws -> TimeInterval {
+        guard let value, !value.isEmpty else {
+            return 180
+        }
+
+        guard let seconds = TimeInterval(value), seconds >= 0 else {
+            throw ConfigError.invalidValue("PRELAUNCH_TIMEOUT_SECONDS")
+        }
+
+        return seconds
+    }
 }
 
 enum ConfigError: Error, LocalizedError {
     case missing(String)
     case invalidLine(String)
     case missingKey(String)
+    case invalidValue(String)
 
     var errorDescription: String? {
         switch self {
@@ -97,6 +137,8 @@ enum ConfigError: Error, LocalizedError {
             return "invalid config line: \(line)"
         case .missingKey(let key):
             return "config must set \(key)"
+        case .invalidValue(let key):
+            return "invalid value for \(key)"
         }
     }
 }

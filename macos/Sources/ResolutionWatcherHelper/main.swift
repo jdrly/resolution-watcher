@@ -12,6 +12,8 @@ private final class ResolutionWatcher: NSObject {
     private let logger: Logger
     private var state: WatcherState = .work
     private var switchingToGame = false
+    private var prelaunchPending = false
+    private var prelaunchRestoreTimer: Timer?
 
     init(config: WatcherConfig, switcher: DisplayModeSwitcher, logger: Logger) {
         self.config = config
@@ -53,11 +55,17 @@ private final class ResolutionWatcher: NSObject {
     }
 
     @objc private func applicationWillLaunch(_ notification: Notification) {
-        guard isWatchedApp(notification) else {
+        if isWatchedApp(notification) {
+            clearPrelaunchPending()
+            switchToGameMode(reason: "\(config.watchedBundleID) launch requested; switching to game mode before app launch")
             return
         }
 
-        switchToGameMode(reason: "\(config.watchedBundleID) launch requested; switching to game mode before app launch")
+        if isPrelaunchApp(notification) {
+            prelaunchPending = true
+            switchToGameMode(reason: "prelaunch app detected; switching to game mode before \(config.watchedBundleID)")
+            schedulePrelaunchRestore()
+        }
     }
 
     @objc private func applicationLaunched(_ notification: Notification) {
@@ -65,6 +73,7 @@ private final class ResolutionWatcher: NSObject {
             return
         }
 
+        clearPrelaunchPending()
         switchToGameMode(reason: "\(config.watchedBundleID) launched; switching to game mode")
     }
 
@@ -73,6 +82,7 @@ private final class ResolutionWatcher: NSObject {
             return
         }
 
+        clearPrelaunchPending()
         logger.log("\(config.watchedBundleID) closed; restoring work mode")
         if switcher.setMode(config.workMode) {
             state = .work
@@ -103,9 +113,48 @@ private final class ResolutionWatcher: NSObject {
         return app.bundleIdentifier == config.watchedBundleID
     }
 
+    private func isPrelaunchApp(_ notification: Notification) -> Bool {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              let bundleIdentifier = app.bundleIdentifier else {
+            return false
+        }
+
+        return config.prelaunchBundleIDs.contains(bundleIdentifier)
+    }
+
     private func isWatchedAppRunning() -> Bool {
         NSWorkspace.shared.runningApplications.contains { app in
             app.bundleIdentifier == config.watchedBundleID && !app.isTerminated
+        }
+    }
+
+    private func schedulePrelaunchRestore() {
+        prelaunchRestoreTimer?.invalidate()
+
+        guard config.prelaunchTimeoutSeconds > 0 else {
+            return
+        }
+
+        prelaunchRestoreTimer = Timer.scheduledTimer(withTimeInterval: config.prelaunchTimeoutSeconds, repeats: false) { [weak self] _ in
+            self?.restoreWorkModeAfterPrelaunchTimeout()
+        }
+    }
+
+    private func clearPrelaunchPending() {
+        prelaunchPending = false
+        prelaunchRestoreTimer?.invalidate()
+        prelaunchRestoreTimer = nil
+    }
+
+    private func restoreWorkModeAfterPrelaunchTimeout() {
+        guard prelaunchPending, state != .work, !isWatchedAppRunning() else {
+            return
+        }
+
+        clearPrelaunchPending()
+        logger.log("\(config.watchedBundleID) did not launch after prelaunch trigger; restoring work mode")
+        if switcher.setMode(config.workMode) {
+            state = .work
         }
     }
 }
